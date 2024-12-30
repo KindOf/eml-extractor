@@ -25,7 +25,7 @@ jobs:
       run: GOOS=windows GOARCH=amd64 go build -v ./...
 
     - name: sember-tag
-      uses: Magikon/github-tag-action@v5.0.0
+      uses: Magikon/github-tag-action
       id: tag
    
     - name: "Created tag"
