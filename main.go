@@ -12,8 +12,8 @@ import (
 
 const (
 	EML_EXTENSION = ".eml"
-	DATA_PATH     = "./data"
-	OUT_PATH      = "./out"
+	DATA_PATH     = "data"
+	OUT_PATH      = "out"
 )
 
 func saveAtt(from string, att *enmime.Part) error {
@@ -81,6 +81,11 @@ func readFile(path string) {
 }
 
 func walkDir(dir string) error {
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		log.Fatalf("No '%s' directory found.\n", dir)
+		os.Exit(1)
+	}
+
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return err
@@ -105,8 +110,7 @@ func walkDir(dir string) error {
 }
 
 func main() {
-	dir := "data"
-	err := walkDir(dir)
+	err := walkDir(DATA_PATH)
 	if err != nil {
 		fmt.Printf("Error %s\n", err)
 	}
