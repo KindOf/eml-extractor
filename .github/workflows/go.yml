@@ -24,19 +24,12 @@ jobs:
     - name: Build
       run: GOOS=windows GOARCH=amd64 go build -v ./...
 
-    - id: semver-tag
-      uses: gandarez/semver-action@master
-      with:
-        branching_model: "trunk-based"
-        main_branch_name: "main"
-        patch_pattern: "^fix:.+"
-        minor_pattern: "^feat:.+"
-        major_pattern: "^major:.+"
-        build_pattern: "^build:.+"
-        exclude_pattern: "^ignore:.+"
-
+    - name: sember-tag
+      uses: Magikon/github-tag-action@v5.0.0
+      id: tag
+   
     - name: "Created tag"
-      run: echo "tag ${{ steps.semver-tag.outputs.semver_tag }}"
+      run: echo "tag ${{ steps.semver-tag.outputs.tag }}"
 
     - name: release
       uses: actions/create-release@v1
@@ -44,6 +37,5 @@ jobs:
       with:
         draft: false
         prerelease: false
-        release_name: ${{ steps.semver-tag.outputs.semver_tag }}
+        release_name: ${{ steps.semver-tag.outputs.tag }}
         tag_name: ${{ github.ref }}
-        body_path: CHANGELOG.md
