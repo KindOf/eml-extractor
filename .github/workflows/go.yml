@@ -5,11 +5,9 @@ name: Go
 
 on:
   push:
-    tags:
-      - 'v*.*.*'
+    branches: [ "main" ]
   pull_request:
-    tags:
-      - 'v*.*.*'
+    branches: [ "main" ]
 
 jobs:
 
@@ -26,13 +24,12 @@ jobs:
     - name: Build
       run: GOOS=windows GOARCH=amd64 go build -v ./...
 
-    - name: release
-      uses: actions/create-release@v1
-      id: create_release
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Get Next Version
+      id: semver
+      uses: ietf-tools/semver-action@v1
       with:
-        draft: false
-        prerelease: false
-        release_name: ${{ github.ref_name }}
-        tag_name: ${{ github.ref_name }}
+        token: ${{ github.token }}
+        branch: main
+
+    - name: Echo version
+      run: 'echo {{ steps.semver.outputs.next }}'
