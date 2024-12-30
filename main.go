@@ -12,12 +12,16 @@ import (
 
 const (
 	EML_EXTENSION = ".eml"
-	DATA_PATH     = "data"
-	OUT_PATH      = "out"
+	DATA_PATH     = "./data"
+	OUT_PATH      = "./out"
 )
 
 func saveAtt(from string, att *enmime.Part) error {
-	outDir := filepath.Join(OUT_PATH, from)
+	ex, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	outDir := filepath.Join(filepath.Dir(ex), OUT_PATH, from)
 	outPath := filepath.Join(outDir, att.FileName)
 
 	if _, err := os.Stat(outDir); os.IsNotExist(err) {
@@ -27,7 +31,7 @@ func saveAtt(from string, att *enmime.Part) error {
 		}
 	}
 
-	err := os.WriteFile(outPath, att.Content, 0644)
+	err = os.WriteFile(outPath, att.Content, 0644)
 	if err != nil {
 		return err
 	}
@@ -81,18 +85,24 @@ func readFile(path string) {
 }
 
 func walkDir(dir string) error {
-	if _, err := os.Stat(dir); os.IsNotExist(err) {
-		log.Fatalf("No '%s' directory found.\n", dir)
+	ex, err := os.Executable()
+	if err != nil {
+		panic(err)
+	}
+
+	path := filepath.Join(filepath.Dir(ex), dir)
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		log.Fatalf("No '%s' directory found.\n", path)
 		os.Exit(1)
 	}
 
-	entries, err := os.ReadDir(dir)
+	entries, err := os.ReadDir(path)
 	if err != nil {
 		return err
 	}
 
 	for _, entry := range entries {
-		fullPath := filepath.Join(dir, entry.Name())
+		fullPath := filepath.Join(path, entry.Name())
 		ext := filepath.Ext(fullPath)
 
 		if entry.IsDir() {
