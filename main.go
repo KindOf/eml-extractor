@@ -12,17 +12,64 @@ import (
 
 const (
 	EML_EXTENSION = ".eml"
-	DATA_PATH     = "./data"
-	OUT_PATH      = "./out"
+	DATA_PATH     = "data"
+	OUT_PATH      = "out"
 )
+
+// sanitizeFileName attempts to produce a filename valid on Windows, macOS, and Linux.
+// It removes or replaces invalid characters for Windows (which covers most cases)
+// and also removes '/' and '\0', which are invalid on Unix-like systems.
+func sanitizeFileName(name string) string {
+	// 1. Characters invalid on Windows:
+	//    < > : " / \ | ? *
+	// 2. On Unix-like (macOS, Linux), '/' is the path separator, and '\0' is never allowed.
+	//    We'll remove or replace them for cross-platform safety.
+
+	// We’ll unify them all into a single set of runes to replace.
+	// Also note: Some filesystems won't allow leading/trailing spaces or periods (Windows).
+	invalidChars := []rune{'<', '>', ':', '"', '/', '\\', '|', '?', '*', '\x00'}
+
+	// Replace these with underscores
+	for _, c := range invalidChars {
+		name = strings.ReplaceAll(name, string(c), "_")
+	}
+
+	// Trim trailing spaces and periods (Windows)
+	name = strings.TrimRight(name, " .")
+
+	// (Optional) On Windows, certain names are reserved:
+	//   CON, PRN, NUL, AUX, COM1..COM9, LPT1..LPT9, etc.
+	// We can rename them to avoid conflicts.
+	// This step won't harm on Linux/macOS.
+	reservedNames := []string{
+		"CON", "PRN", "AUX", "NUL",
+		"COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+		"LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+	}
+	upperName := strings.ToUpper(name)
+	for _, reserved := range reservedNames {
+		// If it's exactly reserved or reserved + extension, rename it
+		if upperName == reserved || strings.HasPrefix(upperName, reserved+".") {
+			name = "_" + name
+			break
+		}
+	}
+
+	// If the name becomes empty, use underscore as fallback
+	if name == "" {
+		name = "_"
+	}
+
+	return name
+}
 
 func saveAtt(from string, att *enmime.Part) error {
 	ex, err := os.Executable()
 	if err != nil {
 		return err
 	}
-	outDir := filepath.Join(filepath.Dir(ex), OUT_PATH, from)
-	outPath := filepath.Join(outDir, att.FileName)
+	outDir := filepath.Join(filepath.Dir(ex), OUT_PATH, sanitizeFileName(from))
+	outPath := filepath.Join(outDir, sanitizeFileName(att.FileName))
 
 	if _, err := os.Stat(outDir); os.IsNotExist(err) {
 		err := os.MkdirAll(outDir, 0755)
@@ -30,6 +77,9 @@ func saveAtt(from string, att *enmime.Part) error {
 			return err
 		}
 	}
+
+	log.Println("-- Saving Attachment --------------------------------")
+	log.Println(outPath)
 
 	err = os.WriteFile(outPath, att.Content, 0644)
 	if err != nil {
@@ -74,7 +124,7 @@ func readFile(path string) {
 	// Process attachments (if any)
 	fmt.Println("\n-- ATTACHMENTS ---------------------------------------------------")
 	for _, att := range env.Attachments {
-		fmt.Printf("Attachment: %s (%d bytes)\n", att.FileName, len(att.Content))
+		log.Printf("Attachment: %s (%d bytes)\n", att.FileName, len(att.Content))
 
 		err = saveAtt(env.GetHeader("From"), att)
 
@@ -111,7 +161,7 @@ func walkDir(dir string) error {
 				return err
 			}
 		} else if ext == EML_EXTENSION {
-			fmt.Println(fullPath)
+			log.Println(fullPath)
 			readFile(fullPath)
 		}
 	}
@@ -122,6 +172,6 @@ func walkDir(dir string) error {
 func main() {
 	err := walkDir(DATA_PATH)
 	if err != nil {
-		fmt.Printf("Error %s\n", err)
+		log.Fatalf("Error %s\n", err)
 	}
 }
